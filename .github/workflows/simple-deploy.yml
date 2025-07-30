@@ -28,9 +28,26 @@ jobs:
         dotnet build FastTechFoodsDLQProcessor.csproj --configuration Release --no-restore
         dotnet publish FastTechFoodsDLQProcessor.csproj --configuration Release --no-build --output ./output
 
+    - name: 'Verify publish profile'
+      run: |
+        if [ -z "${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}" ]; then
+          echo "ERROR: AZURE_FUNCTIONAPP_PUBLISH_PROFILE secret is not set"
+          exit 1
+        fi
+        echo "Publish profile secret is present"
+
+    # Alternative authentication method (uncomment if publish profile fails)
+    # - name: 'Login to Azure'
+    #   uses: azure/login@v1
+    #   with:
+    #     creds: ${{ secrets.AZURE_CREDENTIALS }}
+
     - name: 'Deploy to Azure'
-      uses: Azure/functions-action@v1
+      uses: Azure/functions-action@v1.5.2
       with:
         app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
         package: './output'
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+        respect-pom-xml: false
+        scm-do-build-during-deployment: false
+        enable-oryx-build: false
