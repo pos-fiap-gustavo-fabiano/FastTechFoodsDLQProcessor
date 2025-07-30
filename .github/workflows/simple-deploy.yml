@@ -7,7 +7,7 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_NAME: 'fastechfoods-dlq'
-  PROJECT_PATH: '.'
+  PROJECT_PATH: 'FastTechFoodsDLQProcessor.csproj'
 
 jobs:
   build-and-deploy:
