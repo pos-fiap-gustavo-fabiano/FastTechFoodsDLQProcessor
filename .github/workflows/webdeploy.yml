@@ -1,0 +1,34 @@
+name: Deploy to Azure Function (WebDeploy)
+
+on:
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_NAME: 'fastechfoods-dlq'
+  DOTNET_VERSION: '9.0.x'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 'Checkout'
+      uses: actions/checkout@v4
+
+    - name: 'Setup .NET'
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 'Build and Publish'
+      run: |
+        dotnet restore FastTechFoodsDLQProcessor.csproj
+        dotnet build FastTechFoodsDLQProcessor.csproj --configuration Release --no-restore
+        dotnet publish FastTechFoodsDLQProcessor.csproj --configuration Release --no-build --output ./output
+
+    - name: 'Deploy to Azure via WebDeploy'
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+        package: './output'

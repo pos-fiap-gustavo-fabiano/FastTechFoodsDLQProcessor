@@ -28,26 +28,35 @@ jobs:
         dotnet build FastTechFoodsDLQProcessor.csproj --configuration Release --no-restore
         dotnet publish FastTechFoodsDLQProcessor.csproj --configuration Release --no-build --output ./output
 
-    - name: 'Verify publish profile'
+    - name: 'Create deployment package'
       run: |
-        if [ -z "${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}" ]; then
-          echo "ERROR: AZURE_FUNCTIONAPP_PUBLISH_PROFILE secret is not set"
-          exit 1
-        fi
-        echo "Publish profile secret is present"
+        cd ./output
+        zip -r ../deployment.zip .
+        cd ..
+        ls -la deployment.zip
 
-    # Alternative authentication method (uncomment if publish profile fails)
-    # - name: 'Login to Azure'
-    #   uses: azure/login@v1
-    #   with:
-    #     creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: 'Deploy to Azure'
-      uses: Azure/functions-action@v1.5.2
+    - name: 'Login to Azure'
+      uses: azure/login@v1
       with:
-        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
-        package: './output'
-        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
-        respect-pom-xml: false
-        scm-do-build-during-deployment: false
-        enable-oryx-build: false
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: 'Deploy to Azure Function App'
+      uses: azure/CLI@v1
+      with:
+        azcliversion: 2.53.0
+        inlineScript: |
+          az functionapp deployment source config-zip \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
+            --src deployment.zip \
+            --build-remote true
+
+    - name: 'Configure Environment Variables'
+      uses: azure/CLI@v1
+      with:
+        azcliversion: 2.53.0
+        inlineScript: |
+          az functionapp config appsettings set \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
+            --settings "RabbitMQConnectionString=${{ secrets.RABBITMQ_CONNECTION_STRING }}"
