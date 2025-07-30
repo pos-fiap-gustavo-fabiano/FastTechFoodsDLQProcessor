@@ -1,0 +1,58 @@
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
+using System.Text;
+
+namespace FastTechFoodsDLQProcessor.Functions;
+
+/// <summary>
+/// RabbitMQ trigger function for processing DLQ messages directly from the queue
+/// </summary>
+public class RabbitMQTriggerFunction
+{
+    private readonly ILogger<RabbitMQTriggerFunction> _logger;
+    private static readonly string ConnectionString = Environment.GetEnvironmentVariable("RabbitMQConnectionString") 
+        ?? throw new InvalidOperationException("RabbitMQConnectionString environment variable is required");
+
+    public RabbitMQTriggerFunction(ILogger<RabbitMQTriggerFunction> logger)
+    {
+        _logger = logger;
+        _logger.LogInformation("RabbitMQ Connection String loaded from environment: {HasConnection}", 
+            !string.IsNullOrEmpty(ConnectionString));
+    }
+
+    /// <summary>
+    /// RabbitMQ trigger that processes messages directly from order.dlq.queue
+    /// </summary>
+    [Function("ProcessDLQMessage")]
+    public async Task ProcessDLQMessageAsync(
+        [RabbitMQTrigger("order.dlq.queue", ConnectionStringSetting = "RabbitMQConnectionString")] byte[] messageBody)
+    {
+        try
+        {
+            var message = Encoding.UTF8.GetString(messageBody);
+            _logger.LogInformation("Received DLQ message: {Message}", message);
+            
+            // Process the message here
+            await ProcessMessageAsync(message);
+            
+            _logger.LogInformation("Successfully processed DLQ message");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing DLQ message");
+            throw; // This will cause the message to be requeued or sent to dead letter
+        }
+    }
+
+    private async Task ProcessMessageAsync(string message)
+    {
+        // Add your message processing logic here
+        _logger.LogInformation("Processing message content: {MessageContent}", message);
+        
+        // Example: Parse JSON, validate, transform, or forward to another queue
+        // For now, just log the message
+        await Task.Delay(100); // Simulate some processing work
+        
+        _logger.LogInformation("Message processing completed");
+    }
+}
