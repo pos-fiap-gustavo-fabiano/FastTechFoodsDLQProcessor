@@ -10,14 +10,10 @@ namespace FastTechFoodsDLQProcessor.Functions;
 public class RabbitMQTriggerFunction
 {
     private readonly ILogger<RabbitMQTriggerFunction> _logger;
-    private static readonly string ConnectionString = Environment.GetEnvironmentVariable("RabbitMQConnectionString") 
-        ?? throw new InvalidOperationException("RabbitMQConnectionString environment variable is required");
 
     public RabbitMQTriggerFunction(ILogger<RabbitMQTriggerFunction> logger)
     {
         _logger = logger;
-        _logger.LogInformation("RabbitMQ Connection String loaded from environment: {HasConnection}", 
-            !string.IsNullOrEmpty(ConnectionString));
     }
 
     /// <summary>
