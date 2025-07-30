@@ -1,57 +1,41 @@
-name: Deploy to Azure Function
+name: Deploy Azure Function (.NET 9)
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches:
+      - main
 
 env:
   AZURE_FUNCTIONAPP_NAME: 'fastechfoods-dlq'
-  DOTNET_VERSION: '9.0.x'
+  PROJECT_PATH: '.'
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    
-    steps:
-    - name: 'Checkout'
-      uses: actions/checkout@v4
 
-    - name: 'Setup .NET'
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET 9
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        dotnet-version: '9.0.x'
 
-    - name: 'Build and Publish'
-      run: |
-        dotnet restore FastTechFoodsDLQProcessor.csproj
-        dotnet build FastTechFoodsDLQProcessor.csproj --configuration Release --no-restore
-        dotnet publish FastTechFoodsDLQProcessor.csproj --configuration Release --no-build --output ./output
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_PATH }}
 
-    - name: 'Create deployment package'
-      run: |
-        cd ./output
-        zip -r ../deployment.zip .
-        cd ..
-        ls -la deployment.zip
+    - name: Build
+      run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
 
-    - name: 'Login to Azure'
-      uses: azure/login@v1
+    - name: Publish
+      run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build --output ./publish
+
+    - name: Login Azure (Service Principal)
+      uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: 'Deploy to Azure Function App'
-      uses: azure/CLI@v1
-      with:
-        azcliversion: 2.53.0
-        inlineScript: |
-          az functionapp deployment source config-zip \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
-            --src deployment.zip \
-            --build-remote true
-
-    - name: 'Configure Environment Variables'
+    - name: Configure Environment Variables
       uses: azure/CLI@v1
       with:
         azcliversion: 2.53.0
@@ -60,3 +44,9 @@ jobs:
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
             --settings "RabbitMQConnectionString=${{ secrets.RABBITMQ_CONNECTION_STRING }}"
+
+    - name: Deploy to Azure Functions
+      uses: Azure/functions-action@v1
+      with:
+        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+        package: './publish'
