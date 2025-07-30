@@ -1,6 +1,8 @@
+
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using System.Text;
+using FastTechFoodsDLQProcessor.Services;
 
 namespace FastTechFoodsDLQProcessor.Functions;
 
@@ -10,10 +12,12 @@ namespace FastTechFoodsDLQProcessor.Functions;
 public class RabbitMQTriggerFunction
 {
     private readonly ILogger<RabbitMQTriggerFunction> _logger;
+    private readonly Services.DLQMessageService _dlqMessageService;
 
-    public RabbitMQTriggerFunction(ILogger<RabbitMQTriggerFunction> logger)
+    public RabbitMQTriggerFunction(ILogger<RabbitMQTriggerFunction> logger, Services.DLQMessageService dlqMessageService)
     {
         _logger = logger;
+        _dlqMessageService = dlqMessageService;
     }
 
     /// <summary>
@@ -30,6 +34,9 @@ public class RabbitMQTriggerFunction
             
             // Process the message here
             await ProcessMessageAsync(message);
+
+            // Save message to MongoDB
+            await _dlqMessageService.SaveMessageAsync(message);
             
             _logger.LogInformation("Successfully processed DLQ message");
         }
